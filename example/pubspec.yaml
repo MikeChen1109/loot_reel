@@ -1,5 +1,6 @@
 name: loot_reel_example
 publish_to: none
+version: 0.1.0+1
 
 environment:
   sdk: ^3.11.4

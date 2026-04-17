@@ -375,18 +375,19 @@ class _DefaultIndicator extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            width: 4,
-            height: 112,
-            decoration: BoxDecoration(
-              color: Colors.amberAccent,
-              borderRadius: BorderRadius.circular(999),
-              boxShadow: <BoxShadow>[
-                BoxShadow(
-                  blurRadius: 18,
-                  color: Colors.amber.withValues(alpha: 0.35),
-                ),
-              ],
+          Expanded(
+            child: Container(
+              width: 2,
+              decoration: BoxDecoration(
+                color: Colors.amberAccent,
+                borderRadius: BorderRadius.circular(999),
+                boxShadow: <BoxShadow>[
+                  BoxShadow(
+                    blurRadius: 18,
+                    color: Colors.amber.withValues(alpha: 0.35),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
