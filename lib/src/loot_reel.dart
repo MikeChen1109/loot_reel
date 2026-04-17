@@ -13,6 +13,9 @@ typedef LootReelItemBuilder<T> =
 /// Returns the relative frequency for an item when generating the reel.
 typedef LootReelItemWeightBuilder<T> = double Function(T item);
 
+/// Returns whether an item is allowed to appear in non-winning reel slots.
+typedef LootReelItemFilter<T> = bool Function(T item, T winner);
+
 const int _winnerOffsetFromTail = 6;
 const int _tailBufferLength = 8;
 
@@ -117,6 +120,7 @@ class LootReel<T> extends StatefulWidget {
     this.controller,
     this.itemBuilder,
     this.itemWeightBuilder,
+    this.reelItemFilter,
     this.labelBuilder,
     this.onSpinStart,
     this.onSpinEnd,
@@ -148,6 +152,12 @@ class LootReel<T> extends StatefulWidget {
   final LootReelController? controller;
   final LootReelItemBuilder<T>? itemBuilder;
   final LootReelItemWeightBuilder<T>? itemWeightBuilder;
+
+  /// Filters which source items may appear in non-winning reel slots.
+  ///
+  /// The [winner] is always injected into the final winning slot even if this
+  /// filter returns `false` for it.
+  final LootReelItemFilter<T>? reelItemFilter;
   final String Function(T item)? labelBuilder;
   final VoidCallback? onSpinStart;
   final ValueChanged<T>? onSpinEnd;
@@ -208,7 +218,8 @@ class _LootReelState<T> extends State<LootReel<T>>
     if (!listEquals(oldWidget.items, widget.items) ||
         oldWidget.winner != widget.winner ||
         oldWidget.repeatCount != widget.repeatCount ||
-        oldWidget.itemWeightBuilder != widget.itemWeightBuilder) {
+        oldWidget.itemWeightBuilder != widget.itemWeightBuilder ||
+        oldWidget.reelItemFilter != widget.reelItemFilter) {
       _rebuildReel();
     }
 
@@ -248,51 +259,81 @@ class _LootReelState<T> extends State<LootReel<T>>
   }
 
   void _rebuildReel() {
-    final dropTable = _buildDropTable();
-    final repeatedItems = _buildRepeatedItems(dropTable);
+    final eligibleItems = _buildEligibleItems();
+    final dropTable = _buildDropTable(eligibleItems);
+    final repeatedItems = _buildRepeatedItems(eligibleItems, dropTable);
 
     _winnerIndex = _resolveWinnerIndex(repeatedItems.length);
     repeatedItems[_winnerIndex] = widget.winner;
 
-    _reelItems = <T>[...repeatedItems, ..._buildTailBuffer(dropTable)];
+    _reelItems = <T>[
+      ...repeatedItems,
+      ..._buildTailBuffer(eligibleItems, dropTable),
+    ];
   }
 
-  LootReelDropTable<T>? _buildDropTable() {
+  List<T> _buildEligibleItems() {
+    final reelItemFilter = widget.reelItemFilter;
+    if (reelItemFilter == null) {
+      return widget.items;
+    }
+
+    final eligibleItems = widget.items
+        .where((item) => reelItemFilter(item, widget.winner))
+        .toList(growable: false);
+
+    if (eligibleItems.isEmpty) {
+      throw ArgumentError(
+        'LootReel requires at least one eligible item after applying '
+        'reelItemFilter.',
+      );
+    }
+
+    return eligibleItems;
+  }
+
+  LootReelDropTable<T>? _buildDropTable(List<T> eligibleItems) {
     final itemWeightBuilder = widget.itemWeightBuilder;
     if (itemWeightBuilder == null) {
       return null;
     }
 
     return LootReelDropTable<T>(
-      widget.items.map(
+      eligibleItems.map(
         (item) => LootReelDrop<T>(value: item, weight: itemWeightBuilder(item)),
       ),
     );
   }
 
-  List<T> _buildRepeatedItems(LootReelDropTable<T>? dropTable) {
-    final itemCount = widget.items.length * widget.repeatCount;
+  List<T> _buildRepeatedItems(
+    List<T> eligibleItems,
+    LootReelDropTable<T>? dropTable,
+  ) {
+    final itemCount = eligibleItems.length * widget.repeatCount;
     if (dropTable != null) {
       return dropTable.picks(itemCount, _random).toList(growable: true);
     }
 
     final items = List<T>.generate(
       itemCount,
-      (index) => widget.items[index % widget.items.length],
+      (index) => eligibleItems[index % eligibleItems.length],
       growable: true,
     );
     items.shuffle(_random);
     return items;
   }
 
-  List<T> _buildTailBuffer(LootReelDropTable<T>? dropTable) {
+  List<T> _buildTailBuffer(
+    List<T> eligibleItems,
+    LootReelDropTable<T>? dropTable,
+  ) {
     if (dropTable != null) {
       return dropTable.picks(_tailBufferLength, _random);
     }
 
     return List<T>.generate(
       _tailBufferLength,
-      (index) => widget.items[index % widget.items.length],
+      (index) => eligibleItems[index % eligibleItems.length],
       growable: false,
     );
   }

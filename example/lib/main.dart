@@ -59,6 +59,10 @@ class _ExamplePageState extends State<_ExamplePage> {
   bool get _isOpening => _overlayStage == _OverlayStage.opening;
   bool get _showResult => _overlayStage == _OverlayStage.result;
 
+  bool _canAppearInNonWinningSlots(_Drop item, _Drop winner) {
+    return winner.isLegendary || !item.isLegendary;
+  }
+
   Future<void> _openCase() async {
     if (_isOpening) {
       return;
@@ -127,6 +131,7 @@ class _ExamplePageState extends State<_ExamplePage> {
                         items: _drops,
                         winner: _winner,
                         itemWeightBuilder: (item) => item.weight,
+                        reelItemFilter: _canAppearInNonWinningSlots,
                         itemBuilder: (context, item, state) =>
                             _buildDropTile(context, item, state),
                       ),
@@ -371,6 +376,7 @@ class _OpeningOverlay extends StatelessWidget {
     required this.items,
     required this.winner,
     required this.itemWeightBuilder,
+    required this.reelItemFilter,
     required this.itemBuilder,
   });
 
@@ -378,6 +384,7 @@ class _OpeningOverlay extends StatelessWidget {
   final List<_Drop> items;
   final _Drop winner;
   final LootReelItemWeightBuilder<_Drop> itemWeightBuilder;
+  final LootReelItemFilter<_Drop> reelItemFilter;
   final LootReelItemBuilder<_Drop> itemBuilder;
 
   @override
@@ -403,14 +410,6 @@ class _OpeningOverlay extends StatelessWidget {
                       fontWeight: FontWeight.w900,
                     ),
                   ),
-                  const SizedBox(height: 10),
-                  Text(
-                    'Overlay mode: the reel appears only during the opening animation.',
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      color: Colors.white70,
-                    ),
-                  ),
                   const SizedBox(height: 28),
                   Container(
                     padding: const EdgeInsets.symmetric(
@@ -431,6 +430,7 @@ class _OpeningOverlay extends StatelessWidget {
                         items: items,
                         winner: winner,
                         itemWeightBuilder: itemWeightBuilder,
+                        reelItemFilter: reelItemFilter,
                         itemExtent: 160,
                         height: 150,
                         itemBuilder: itemBuilder,
@@ -574,4 +574,6 @@ class _Drop {
   final String rarity;
   final Color color;
   final double weight;
+
+  bool get isLegendary => rarity == 'Legendary';
 }

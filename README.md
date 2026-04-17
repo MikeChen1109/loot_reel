@@ -84,6 +84,20 @@ LootReel<String>(
 )
 ```
 
+If you want premium items to appear only when they are actually the winner,
+provide `reelItemFilter`:
+
+```dart
+LootReel<String>(
+  controller: controller,
+  items: const ['Common', 'Rare', 'Legendary'],
+  winner: winner,
+  reelItemFilter: (item, winner) {
+    return winner == 'Legendary' || item != 'Legendary';
+  },
+)
+```
+
 For a complete demo, run the example app:
 
 ```bash
@@ -94,6 +108,7 @@ flutter run
 ## Notes
 
 - `winner` is pinned near the end of the reel so the result is guaranteed.
+- `winner` is known before the spin starts; the animation only reveals it.
 - `winner` does not need to exist inside `items`; it is injected into the
   generated reel before the spin starts.
 - The reel is intentionally non-scrollable during playback.

@@ -110,6 +110,32 @@ void main() {
     expect(completedWinner, 'Legendary');
   });
 
+  testWidgets('filters non-winning reel items against the winner', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 2200,
+            child: LootReel<String>(
+              items: const ['Common', 'Rare', 'Legendary'],
+              winner: 'Common',
+              repeatCount: 1,
+              reelItemFilter: (item, winner) {
+                return winner == 'Legendary' || item != 'Legendary';
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Legendary'), findsNothing);
+    expect(find.text('Common'), findsWidgets);
+    expect(find.text('Rare'), findsWidgets);
+  });
+
   test('validates constructor arguments in runtime mode', () {
     expect(
       () => LootReel<String>(items: const [], winner: 'Knife'),
