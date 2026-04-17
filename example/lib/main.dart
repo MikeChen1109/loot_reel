@@ -60,7 +60,7 @@ class _ExamplePageState extends State<_ExamplePage> {
   bool get _showResult => _overlayStage == _OverlayStage.result;
 
   bool _canAppearInNonWinningSlots(_Drop item, _Drop winner) {
-    return winner.isLegendary || !item.isLegendary;
+    return !item.isLegendary;
   }
 
   Future<void> _openCase() async {

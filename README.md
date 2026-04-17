@@ -92,9 +92,7 @@ LootReel<String>(
   controller: controller,
   items: const ['Common', 'Rare', 'Legendary'],
   winner: winner,
-  reelItemFilter: (item, winner) {
-    return winner == 'Legendary' || item != 'Legendary';
-  },
+  reelItemFilter: (item, winner) => item != 'Legendary',
 )
 ```
 

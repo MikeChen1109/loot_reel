@@ -122,9 +122,7 @@ void main() {
               items: const ['Common', 'Rare', 'Legendary'],
               winner: 'Common',
               repeatCount: 1,
-              reelItemFilter: (item, winner) {
-                return winner == 'Legendary' || item != 'Legendary';
-              },
+              reelItemFilter: (item, winner) => item != 'Legendary',
             ),
           ),
         ),
@@ -132,6 +130,30 @@ void main() {
     );
 
     expect(find.text('Legendary'), findsNothing);
+    expect(find.text('Common'), findsWidgets);
+    expect(find.text('Rare'), findsWidgets);
+  });
+
+  testWidgets('still injects a filtered winner into the final winning slot', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 2200,
+            child: LootReel<String>(
+              items: const ['Common', 'Rare', 'Legendary'],
+              winner: 'Legendary',
+              repeatCount: 1,
+              reelItemFilter: (item, winner) => item != 'Legendary',
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Legendary'), findsOneWidget);
     expect(find.text('Common'), findsWidgets);
     expect(find.text('Rare'), findsWidgets);
   });
