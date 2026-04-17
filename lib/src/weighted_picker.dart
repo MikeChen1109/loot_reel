@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+/// A weighted entry used by [LootReelDropTable].
 class LootReelDrop<T> {
   const LootReelDrop({required this.value, this.weight = 1});
 
@@ -7,6 +8,7 @@ class LootReelDrop<T> {
   final double weight;
 }
 
+/// Samples values according to their configured weights.
 class LootReelDropTable<T> {
   LootReelDropTable(Iterable<LootReelDrop<T>> entries)
     : _entries = List<LootReelDrop<T>>.unmodifiable(entries) {
@@ -24,7 +26,18 @@ class LootReelDropTable<T> {
       }
     }
 
-    _totalWeight = _entries.fold<double>(0, (sum, entry) => sum + entry.weight);
+    _cumulativeWeights = List<double>.filled(
+      _entries.length,
+      0,
+      growable: false,
+    );
+    var cumulativeWeight = 0.0;
+    for (var index = 0; index < _entries.length; index++) {
+      cumulativeWeight += _entries[index].weight;
+      _cumulativeWeights[index] = cumulativeWeight;
+    }
+
+    _totalWeight = cumulativeWeight;
 
     if (_totalWeight <= 0) {
       throw ArgumentError(
@@ -34,6 +47,7 @@ class LootReelDropTable<T> {
   }
 
   final List<LootReelDrop<T>> _entries;
+  late final List<double> _cumulativeWeights;
   late final double _totalWeight;
 
   List<LootReelDrop<T>> get entries => _entries;
@@ -42,16 +56,7 @@ class LootReelDropTable<T> {
   T pick([math.Random? random]) {
     final rng = random ?? math.Random();
     final target = rng.nextDouble() * _totalWeight;
-    var cumulativeWeight = 0.0;
-
-    for (final entry in _entries) {
-      cumulativeWeight += entry.weight;
-      if (target < cumulativeWeight) {
-        return entry.value;
-      }
-    }
-
-    return _entries.last.value;
+    return _entries[_findEntryIndex(target)].value;
   }
 
   List<T> picks(int count, [math.Random? random]) {
@@ -61,5 +66,21 @@ class LootReelDropTable<T> {
 
     final rng = random ?? math.Random();
     return List<T>.generate(count, (_) => pick(rng), growable: false);
+  }
+
+  int _findEntryIndex(double target) {
+    var lowerBound = 0;
+    var upperBound = _cumulativeWeights.length - 1;
+
+    while (lowerBound < upperBound) {
+      final middle = lowerBound + ((upperBound - lowerBound) >> 1);
+      if (target < _cumulativeWeights[middle]) {
+        upperBound = middle;
+      } else {
+        lowerBound = middle + 1;
+      }
+    }
+
+    return lowerBound;
   }
 }

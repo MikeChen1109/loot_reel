@@ -9,6 +9,7 @@ celebration burst when the spin ends.
 - Reusable `LootReel<T>` widget instead of a full-screen scaffold
 - `LootReelController` to trigger spins from your own UI
 - Generic item support with a custom `itemBuilder`
+- Optional weighted item generation for more realistic reel composition
 - Built-in default card UI for simple string-based use cases
 - Example app included in [`example/`](example)
 
@@ -66,6 +67,21 @@ class _DemoState extends State<Demo> {
 }
 ```
 
+For weighted item generation, provide `itemWeightBuilder`:
+
+```dart
+LootReel<String>(
+  controller: controller,
+  items: const ['Common', 'Rare', 'Epic'],
+  winner: 'Legendary',
+  itemWeightBuilder: (item) => switch (item) {
+    'Common' => 10,
+    'Rare' => 3,
+    _ => 1,
+  },
+)
+```
+
 For a complete demo, run the example app:
 
 ```bash
@@ -76,6 +92,8 @@ flutter run
 ## Notes
 
 - `winner` is pinned near the end of the reel so the result is guaranteed.
+- `winner` does not need to exist inside `items`; it is injected into the
+  generated reel before the spin starts.
 - The reel is intentionally non-scrollable during playback.
 - If you need a fully custom look, provide `itemBuilder`.
 

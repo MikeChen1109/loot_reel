@@ -51,6 +51,14 @@ void main() {
     expect(legendaryCount, lessThan(15));
     expect(results.length, 200);
   });
+
+  test('weighted table rejects negative pick counts', () {
+    final table = LootReelDropTable<String>(<LootReelDrop<String>>[
+      const LootReelDrop<String>(value: 'common', weight: 1),
+    ]);
+
+    expect(() => table.picks(-1), throwsArgumentError);
+  });
 }
 
 class _FakeRandom implements math.Random {

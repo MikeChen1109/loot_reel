@@ -6,17 +6,85 @@ import 'package:flutter/material.dart';
 
 import 'weighted_picker.dart';
 
+/// Builds a tile for each reel item.
 typedef LootReelItemBuilder<T> =
     Widget Function(BuildContext context, T item, LootReelTileState state);
+
+/// Returns the relative frequency for an item when generating the reel.
 typedef LootReelItemWeightBuilder<T> = double Function(T item);
 
+const int _winnerOffsetFromTail = 6;
+const int _tailBufferLength = 8;
+
+List<T> _validatedItems<T>(List<T> items) {
+  if (items.isEmpty) {
+    throw ArgumentError.value(
+      items,
+      'items',
+      'LootReel requires at least one item.',
+    );
+  }
+
+  return List<T>.unmodifiable(items);
+}
+
+double _validatedPositiveDouble(String name, double value) {
+  if (!value.isFinite || value <= 0) {
+    throw ArgumentError.value(
+      value,
+      name,
+      '$name must be finite and greater than 0.',
+    );
+  }
+
+  return value;
+}
+
+double _validatedNonNegativeDouble(String name, double value) {
+  if (!value.isFinite || value < 0) {
+    throw ArgumentError.value(
+      value,
+      name,
+      '$name must be finite and greater than or equal to 0.',
+    );
+  }
+
+  return value;
+}
+
+int _validatedPositiveInt(String name, int value) {
+  if (value <= 0) {
+    throw ArgumentError.value(value, name, '$name must be greater than 0.');
+  }
+
+  return value;
+}
+
+Duration _validatedNonNegativeDuration(String name, Duration value) {
+  if (value < Duration.zero) {
+    throw ArgumentError.value(
+      value,
+      name,
+      '$name must be greater than or equal to zero.',
+    );
+  }
+
+  return value;
+}
+
+/// The visual state of a reel tile during playback.
 enum LootReelTileState { idle, winner, focusedWinner }
 
+/// Controls a [LootReel] from outside the widget tree.
 class LootReelController {
   _LootReelControllerDelegate? _delegate;
 
+  /// Whether the attached reel is currently spinning.
   bool get isSpinning => _delegate?._isSpinning ?? false;
 
+  /// Starts a spin on the attached reel.
+  ///
+  /// If no reel is attached, this completes immediately.
   Future<void> spin() async {
     await _delegate?._spin();
   }
@@ -28,6 +96,7 @@ abstract class _LootReelControllerDelegate {
   Future<void> _spin();
 }
 
+/// A decelerating curve tuned for slot-style reel motion.
 class LootReelSpinCurve extends Curve {
   const LootReelSpinCurve({this.power = 8});
 
@@ -39,10 +108,11 @@ class LootReelSpinCurve extends Curve {
   }
 }
 
+/// A horizontally scrolling loot reel with deterministic winner placement.
 class LootReel<T> extends StatefulWidget {
-  const LootReel({
+  LootReel({
     super.key,
-    required this.items,
+    required List<T> items,
     required this.winner,
     this.controller,
     this.itemBuilder,
@@ -50,19 +120,28 @@ class LootReel<T> extends StatefulWidget {
     this.labelBuilder,
     this.onSpinStart,
     this.onSpinEnd,
-    this.itemExtent = 112,
-    this.itemSpacing = 8,
-    this.repeatCount = 40,
-    this.spinDuration = const Duration(seconds: 5),
-    this.celebrationDuration = const Duration(milliseconds: 1400),
+    double itemExtent = 112,
+    double itemSpacing = 8,
+    int repeatCount = 40,
+    Duration spinDuration = const Duration(seconds: 5),
+    Duration celebrationDuration = const Duration(milliseconds: 1400),
     this.curve = const LootReelSpinCurve(),
     this.indicator,
-    this.height = 128,
+    double height = 128,
     this.padding = const EdgeInsets.symmetric(vertical: 8),
-  }) : assert(items.length > 0),
-       assert(itemExtent > 0),
-       assert(itemSpacing >= 0),
-       assert(repeatCount > 0);
+  }) : items = _validatedItems(items),
+       itemExtent = _validatedPositiveDouble('itemExtent', itemExtent),
+       itemSpacing = _validatedNonNegativeDouble('itemSpacing', itemSpacing),
+       repeatCount = _validatedPositiveInt('repeatCount', repeatCount),
+       spinDuration = _validatedNonNegativeDuration(
+         'spinDuration',
+         spinDuration,
+       ),
+       celebrationDuration = _validatedNonNegativeDuration(
+         'celebrationDuration',
+         celebrationDuration,
+       ),
+       height = _validatedPositiveDouble('height', height);
 
   final List<T> items;
   final T winner;
@@ -128,7 +207,8 @@ class _LootReelState<T> extends State<LootReel<T>>
 
     if (!listEquals(oldWidget.items, widget.items) ||
         oldWidget.winner != widget.winner ||
-        oldWidget.repeatCount != widget.repeatCount) {
+        oldWidget.repeatCount != widget.repeatCount ||
+        oldWidget.itemWeightBuilder != widget.itemWeightBuilder) {
       _rebuildReel();
     }
 
@@ -149,6 +229,15 @@ class _LootReelState<T> extends State<LootReel<T>>
     if (controller == null) {
       return;
     }
+    if (controller._delegate != null && controller._delegate != this) {
+      throw StateError(
+        'A LootReelController can only be attached to one LootReel at a time.',
+      );
+    }
+    assert(
+      controller._delegate == null || controller._delegate == this,
+      'A LootReelController can only be attached to one LootReel at a time.',
+    );
     controller._delegate = this;
   }
 
@@ -159,42 +248,57 @@ class _LootReelState<T> extends State<LootReel<T>>
   }
 
   void _rebuildReel() {
-    final dropTable = widget.itemWeightBuilder == null
-        ? null
-        : LootReelDropTable<T>(
-            widget.items.map(
-              (item) => LootReelDrop<T>(
-                value: item,
-                weight: widget.itemWeightBuilder!.call(item),
-              ),
-            ),
-          );
-    final repeatedItems = dropTable == null
-        ? List<T>.generate(
-            widget.items.length * widget.repeatCount,
-            (index) => widget.items[index % widget.items.length],
-            growable: true,
-          )
-        : dropTable
-              .picks(widget.items.length * widget.repeatCount, _random)
-              .toList();
+    final dropTable = _buildDropTable();
+    final repeatedItems = _buildRepeatedItems(dropTable);
 
-    if (dropTable == null) {
-      repeatedItems.shuffle(_random);
-    }
-
-    _winnerIndex = math.max(0, repeatedItems.length - 6);
+    _winnerIndex = _resolveWinnerIndex(repeatedItems.length);
     repeatedItems[_winnerIndex] = widget.winner;
 
-    final tailBuffer = dropTable == null
-        ? List<T>.generate(
-            8,
-            (index) => widget.items[index % widget.items.length],
-            growable: false,
-          )
-        : dropTable.picks(8, _random);
+    _reelItems = <T>[...repeatedItems, ..._buildTailBuffer(dropTable)];
+  }
 
-    _reelItems = <T>[...repeatedItems, ...tailBuffer];
+  LootReelDropTable<T>? _buildDropTable() {
+    final itemWeightBuilder = widget.itemWeightBuilder;
+    if (itemWeightBuilder == null) {
+      return null;
+    }
+
+    return LootReelDropTable<T>(
+      widget.items.map(
+        (item) => LootReelDrop<T>(value: item, weight: itemWeightBuilder(item)),
+      ),
+    );
+  }
+
+  List<T> _buildRepeatedItems(LootReelDropTable<T>? dropTable) {
+    final itemCount = widget.items.length * widget.repeatCount;
+    if (dropTable != null) {
+      return dropTable.picks(itemCount, _random).toList(growable: true);
+    }
+
+    final items = List<T>.generate(
+      itemCount,
+      (index) => widget.items[index % widget.items.length],
+      growable: true,
+    );
+    items.shuffle(_random);
+    return items;
+  }
+
+  List<T> _buildTailBuffer(LootReelDropTable<T>? dropTable) {
+    if (dropTable != null) {
+      return dropTable.picks(_tailBufferLength, _random);
+    }
+
+    return List<T>.generate(
+      _tailBufferLength,
+      (index) => widget.items[index % widget.items.length],
+      growable: false,
+    );
+  }
+
+  int _resolveWinnerIndex(int repeatedItemCount) {
+    return math.max(0, repeatedItemCount - _winnerOffsetFromTail);
   }
 
   @override
