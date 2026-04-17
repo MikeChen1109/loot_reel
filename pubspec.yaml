@@ -1,0 +1,26 @@
+name: loot_reel
+description: Slot-style case opening reel animation for Flutter.
+version: 0.1.0
+homepage: https://github.com/MikeChen1109/loot_reel
+repository: https://github.com/MikeChen1109/loot_reel
+issue_tracker: https://github.com/MikeChen1109/loot_reel/issues
+topics:
+  - animation
+  - gaming
+  - reel
+  - ui
+
+environment:
+  sdk: ^3.11.4
+  flutter: ">=1.17.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
