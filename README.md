@@ -4,6 +4,8 @@ A reusable Flutter widget for CS-style case opening reels. It gives you a
 center-indicated horizontal roll, deterministic winner placement, and a small
 celebration burst when the spin ends.
 
+![Loot Reel demo](https://raw.githubusercontent.com/MikeChen1109/loot_reel/main/doc/assets/demo.gif)
+
 ## Features
 
 - Reusable `LootReel<T>` widget instead of a full-screen scaffold
