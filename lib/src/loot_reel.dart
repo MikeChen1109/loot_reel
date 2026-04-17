@@ -4,8 +4,11 @@ import 'dart:ui' show lerpDouble;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import 'weighted_picker.dart';
+
 typedef LootReelItemBuilder<T> =
     Widget Function(BuildContext context, T item, LootReelTileState state);
+typedef LootReelItemWeightBuilder<T> = double Function(T item);
 
 enum LootReelTileState { idle, winner, focusedWinner }
 
@@ -43,6 +46,7 @@ class LootReel<T> extends StatefulWidget {
     required this.winner,
     this.controller,
     this.itemBuilder,
+    this.itemWeightBuilder,
     this.labelBuilder,
     this.onSpinStart,
     this.onSpinEnd,
@@ -64,6 +68,7 @@ class LootReel<T> extends StatefulWidget {
   final T winner;
   final LootReelController? controller;
   final LootReelItemBuilder<T>? itemBuilder;
+  final LootReelItemWeightBuilder<T>? itemWeightBuilder;
   final String Function(T item)? labelBuilder;
   final VoidCallback? onSpinStart;
   final ValueChanged<T>? onSpinEnd;
@@ -154,20 +159,40 @@ class _LootReelState<T> extends State<LootReel<T>>
   }
 
   void _rebuildReel() {
-    final repeatedItems = List<T>.generate(
-      widget.items.length * widget.repeatCount,
-      (index) => widget.items[index % widget.items.length],
-      growable: true,
-    )..shuffle(_random);
+    final dropTable = widget.itemWeightBuilder == null
+        ? null
+        : LootReelDropTable<T>(
+            widget.items.map(
+              (item) => LootReelDrop<T>(
+                value: item,
+                weight: widget.itemWeightBuilder!.call(item),
+              ),
+            ),
+          );
+    final repeatedItems = dropTable == null
+        ? List<T>.generate(
+            widget.items.length * widget.repeatCount,
+            (index) => widget.items[index % widget.items.length],
+            growable: true,
+          )
+        : dropTable
+              .picks(widget.items.length * widget.repeatCount, _random)
+              .toList();
+
+    if (dropTable == null) {
+      repeatedItems.shuffle(_random);
+    }
 
     _winnerIndex = math.max(0, repeatedItems.length - 6);
     repeatedItems[_winnerIndex] = widget.winner;
 
-    final tailBuffer = List<T>.generate(
-      8,
-      (index) => widget.items[index % widget.items.length],
-      growable: false,
-    );
+    final tailBuffer = dropTable == null
+        ? List<T>.generate(
+            8,
+            (index) => widget.items[index % widget.items.length],
+            growable: false,
+          )
+        : dropTable.picks(8, _random);
 
     _reelItems = <T>[...repeatedItems, ...tailBuffer];
   }

@@ -41,13 +41,16 @@ class _ExamplePageState extends State<_ExamplePage> {
   final math.Random _random = math.Random();
 
   static const List<_Drop> _drops = <_Drop>[
-    _Drop('P250 Sand Dune', 'Common', Color(0xFF7C8A99)),
-    _Drop('USP-S Cortex', 'Rare', Color(0xFF3B82F6)),
-    _Drop('AK-47 Neon Rider', 'Epic', Color(0xFFA855F7)),
-    _Drop('AWP Asiimov', 'Epic', Color(0xFFF97316)),
-    _Drop('Karambit Fade', 'Legendary', Color(0xFFFACC15)),
-    _Drop('Sport Gloves Vice', 'Legendary', Color(0xFFFB7185)),
+    _Drop('P250 Sand Dune', 'Common', Color(0xFF7C8A99), weight: 40),
+    _Drop('USP-S Cortex', 'Rare', Color(0xFF3B82F6), weight: 24),
+    _Drop('AK-47 Neon Rider', 'Epic', Color(0xFFA855F7), weight: 10),
+    _Drop('AWP Asiimov', 'Epic', Color(0xFFF97316), weight: 7),
+    _Drop('Karambit Fade', 'Legendary', Color(0xFFFACC15), weight: 1.4),
+    _Drop('Sport Gloves Vice', 'Legendary', Color(0xFFFB7185), weight: 0.6),
   ];
+  late final LootReelDropTable<_Drop> _dropTable = LootReelDropTable<_Drop>(
+    _drops.map((drop) => LootReelDrop<_Drop>(value: drop, weight: drop.weight)),
+  );
 
   late _Drop _winner = _drops.last;
   _Drop? _lastOpened;
@@ -61,7 +64,7 @@ class _ExamplePageState extends State<_ExamplePage> {
       return;
     }
 
-    final winner = _drops[_random.nextInt(_drops.length)];
+    final winner = _dropTable.pick(_random);
 
     setState(() {
       _winner = winner;
@@ -123,6 +126,7 @@ class _ExamplePageState extends State<_ExamplePage> {
                         controller: _controller,
                         items: _drops,
                         winner: _winner,
+                        itemWeightBuilder: (item) => item.weight,
                         itemBuilder: (context, item, state) =>
                             _buildDropTile(context, item, state),
                       ),
@@ -298,7 +302,7 @@ class _MainShowcase extends StatelessWidget {
                               const Spacer(),
                               Icon(
                                 Icons.inventory_2_rounded,
-                                size: 92,
+                                size: 84,
                                 color: Colors.white.withValues(alpha: 0.85),
                               ),
                               const Spacer(),
@@ -307,6 +311,14 @@ class _MainShowcase extends StatelessWidget {
                                 style: theme.textTheme.bodyLarge?.copyWith(
                                   color: Colors.white70,
                                   height: 1.4,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Weighted drops enabled',
+                                style: theme.textTheme.labelLarge?.copyWith(
+                                  color: Colors.white.withValues(alpha: 0.65),
+                                  letterSpacing: 0.8,
                                 ),
                               ),
                             ],
@@ -358,12 +370,14 @@ class _OpeningOverlay extends StatelessWidget {
     required this.controller,
     required this.items,
     required this.winner,
+    required this.itemWeightBuilder,
     required this.itemBuilder,
   });
 
   final LootReelController controller;
   final List<_Drop> items;
   final _Drop winner;
+  final LootReelItemWeightBuilder<_Drop> itemWeightBuilder;
   final LootReelItemBuilder<_Drop> itemBuilder;
 
   @override
@@ -416,6 +430,7 @@ class _OpeningOverlay extends StatelessWidget {
                         controller: controller,
                         items: items,
                         winner: winner,
+                        itemWeightBuilder: itemWeightBuilder,
                         itemExtent: 160,
                         height: 150,
                         itemBuilder: itemBuilder,
@@ -553,9 +568,10 @@ class _ResultOverlay extends StatelessWidget {
 }
 
 class _Drop {
-  const _Drop(this.name, this.rarity, this.color);
+  const _Drop(this.name, this.rarity, this.color, {required this.weight});
 
   final String name;
   final String rarity;
   final Color color;
+  final double weight;
 }
