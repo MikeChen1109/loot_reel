@@ -1,8 +1,7 @@
 # loot_reel
 
 A reusable Flutter widget for CS-style case opening reels. It gives you a
-center-indicated horizontal roll, deterministic winner placement, and a small
-celebration burst when the spin ends.
+center-indicated horizontal roll and deterministic winner placement.
 
 ![Loot Reel demo](https://raw.githubusercontent.com/MikeChen1109/loot_reel/main/doc/assets/demo.gif)
 
@@ -19,7 +18,7 @@ celebration burst when the spin ends.
 
 ```yaml
 dependencies:
-  loot_reel: ^0.1.0
+  loot_reel: ^0.2.0
 ```
 
 ## Usage

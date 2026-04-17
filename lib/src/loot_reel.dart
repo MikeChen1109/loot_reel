@@ -1,5 +1,4 @@
 import 'dart:math' as math;
-import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -128,7 +127,6 @@ class LootReel<T> extends StatefulWidget {
     double itemSpacing = 8,
     int repeatCount = 40,
     Duration spinDuration = const Duration(seconds: 5),
-    Duration celebrationDuration = const Duration(milliseconds: 1400),
     this.curve = const LootReelSpinCurve(),
     this.indicator,
     double height = 128,
@@ -140,10 +138,6 @@ class LootReel<T> extends StatefulWidget {
        spinDuration = _validatedNonNegativeDuration(
          'spinDuration',
          spinDuration,
-       ),
-       celebrationDuration = _validatedNonNegativeDuration(
-         'celebrationDuration',
-         celebrationDuration,
        ),
        height = _validatedPositiveDouble('height', height);
 
@@ -165,7 +159,6 @@ class LootReel<T> extends StatefulWidget {
   final double itemSpacing;
   final int repeatCount;
   final Duration spinDuration;
-  final Duration celebrationDuration;
   final Curve curve;
   final Widget? indicator;
   final double height;
@@ -176,19 +169,15 @@ class LootReel<T> extends StatefulWidget {
 }
 
 class _LootReelState<T> extends State<LootReel<T>>
-    with SingleTickerProviderStateMixin
     implements _LootReelControllerDelegate {
   final ScrollController _scrollController = ScrollController();
   final math.Random _random = math.Random();
-
-  late final AnimationController _celebrationController;
 
   late List<T> _reelItems;
   late int _winnerIndex;
 
   bool _finishedSpin = false;
   bool _spinning = false;
-  int _celebrationSeed = 0;
 
   double get _itemStride => widget.itemExtent + widget.itemSpacing;
 
@@ -198,10 +187,6 @@ class _LootReelState<T> extends State<LootReel<T>>
   @override
   void initState() {
     super.initState();
-    _celebrationController = AnimationController(
-      vsync: this,
-      duration: widget.celebrationDuration,
-    );
     _rebuildReel();
     _attachController(widget.controller);
   }
@@ -222,16 +207,11 @@ class _LootReelState<T> extends State<LootReel<T>>
         oldWidget.reelItemFilter != widget.reelItemFilter) {
       _rebuildReel();
     }
-
-    if (oldWidget.celebrationDuration != widget.celebrationDuration) {
-      _celebrationController.duration = widget.celebrationDuration;
-    }
   }
 
   @override
   void dispose() {
     _detachController(widget.controller);
-    _celebrationController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
@@ -390,10 +370,8 @@ class _LootReelState<T> extends State<LootReel<T>>
     setState(() {
       _spinning = false;
       _finishedSpin = true;
-      _celebrationSeed = _random.nextInt(1 << 32);
     });
 
-    _celebrationController.forward(from: 0);
     widget.onSpinEnd?.call(widget.winner);
   }
 
@@ -439,27 +417,6 @@ class _LootReelState<T> extends State<LootReel<T>>
                 ),
                 IgnorePointer(
                   child: widget.indicator ?? const _DefaultIndicator(),
-                ),
-                Positioned.fill(
-                  child: IgnorePointer(
-                    child: AnimatedBuilder(
-                      animation: _celebrationController,
-                      builder: (context, child) {
-                        return CustomPaint(
-                          painter: _CelebrationPainter(
-                            progress: _celebrationController.value,
-                            seed: _celebrationSeed,
-                            colors: <Color>[
-                              Colors.amber,
-                              Colors.orange,
-                              Colors.lightBlueAccent,
-                              Colors.white,
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                  ),
                 ),
               ],
             ),
@@ -563,52 +520,5 @@ class _DefaultIndicator extends StatelessWidget {
         ],
       ),
     );
-  }
-}
-
-class _CelebrationPainter extends CustomPainter {
-  _CelebrationPainter({
-    required this.progress,
-    required this.seed,
-    required this.colors,
-  });
-
-  final double progress;
-  final int seed;
-  final List<Color> colors;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (progress <= 0) {
-      return;
-    }
-
-    final eased = Curves.easeOut.transform(progress);
-    final fade = 1 - Curves.easeIn.transform(progress);
-    final origin = Offset(size.width / 2, size.height * 0.3);
-
-    for (var index = 0; index < 24; index++) {
-      final random = math.Random(seed + (index * 97));
-      final angle = random.nextDouble() * math.pi * 2;
-      final distance = lerpDouble(24, 132, eased)!;
-      final spread = lerpDouble(0, random.nextDouble() * 28, eased)!;
-      final gravity = 84 * progress * progress;
-      final offset = Offset(
-        math.cos(angle) * (distance + spread),
-        math.sin(angle) * distance + gravity,
-      );
-      final radius = lerpDouble(6, 2, progress)!;
-      final paint = Paint()
-        ..color = colors[index % colors.length].withValues(
-          alpha: fade.clamp(0, 1),
-        );
-
-      canvas.drawCircle(origin + offset, radius, paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _CelebrationPainter oldDelegate) {
-    return oldDelegate.progress != progress || oldDelegate.seed != seed;
   }
 }

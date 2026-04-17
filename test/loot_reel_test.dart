@@ -18,7 +18,6 @@ void main() {
                 items: const ['USP-S', 'AK-47', 'AWP', 'Sticker'],
                 winner: 'Knife',
                 spinDuration: const Duration(milliseconds: 80),
-                celebrationDuration: const Duration(milliseconds: 80),
                 onSpinEnd: (winner) => completedWinner = winner,
               ),
             ),
@@ -56,7 +55,6 @@ void main() {
               items: const ['USP-S', 'AK-47', 'AWP', 'Sticker'],
               winner: 'Knife',
               spinDuration: const Duration(milliseconds: 80),
-              celebrationDuration: const Duration(milliseconds: 80),
               onSpinStart: () => spinStarts++,
               onSpinEnd: (_) => spinEnds++,
             ),
@@ -94,7 +92,6 @@ void main() {
                   _ => 1,
                 },
                 spinDuration: const Duration(milliseconds: 80),
-                celebrationDuration: const Duration(milliseconds: 80),
                 onSpinEnd: (winner) => completedWinner = winner,
               ),
             ),
@@ -192,14 +189,6 @@ void main() {
         items: const ['Knife'],
         winner: 'Knife',
         spinDuration: const Duration(milliseconds: -1),
-      ),
-      throwsArgumentError,
-    );
-    expect(
-      () => LootReel<String>(
-        items: const ['Knife'],
-        winner: 'Knife',
-        celebrationDuration: const Duration(milliseconds: -1),
       ),
       throwsArgumentError,
     );
